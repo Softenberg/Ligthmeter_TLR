@@ -132,13 +132,13 @@ void setup_display()
 
     display.clearDisplay();
 
-    display_print(mode_text[CameraMode::Aperture] + ":", 0, 0);
-    display_print(mode_text[CameraMode::Shutter] + ":", 0, 8);
-    display_print(mode_text[CameraMode::ISO] + ":", 0, 16);
+    display_print(mode_text[CameraMode::Aperture] + ":", 0, 8);
+    display_print(mode_text[CameraMode::Shutter] + ":", 0, 16);
+    display_print(mode_text[CameraMode::ISO] + ":", 0, 0);
     display_print("MODE:", 0, 24);
-    display_print(String(exposure.aperture), OLED_COL_WIDTH, 0);
-    display_print(String(exposure.shutter), OLED_COL_WIDTH, 8);
-    display_print(String(exposure.iso), OLED_COL_WIDTH, 16);
+    display_print(String(exposure.aperture), OLED_COL_WIDTH, 8);
+    display_print(String(exposure.shutter), OLED_COL_WIDTH, 16);
+    display_print(String(exposure.iso), OLED_COL_WIDTH, 0);
     display_print(mode_text[mode.current], OLED_COL_WIDTH, 24);
 
     display.display();
