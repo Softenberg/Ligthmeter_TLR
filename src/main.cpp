@@ -286,8 +286,8 @@ void display_calculated_shutter(int calculated_shutter)
 {
     if (calculated_shutter != old_calculated_shutter)
     {   
-        display_erase("1/"+String(old_calculated_shutter), 70, 24);
-        display_print("1/"+String(calculated_shutter), 70, 24);
+        display_erase("1/"+String(old_calculated_shutter), 70, 16);
+        display_print("1/"+String(calculated_shutter), 70, 16);
         old_calculated_shutter = calculated_shutter;
     }
 }
