@@ -210,6 +210,7 @@ void update_exposure(int step)
         }
         break;
     }
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 0));
 }
 
 void display_text(int encoder)
