@@ -20,9 +20,10 @@
 #define VALID_SHUTTERS_SIZE 9
 #define VALID_ISOS_SIZE 9
 
-#define OLED_COL_WIDTH 60
+#define OLED_COL_WIDTH 35 
 
-bool DEBUG = true;
+
+bool DEBUG = false;
 
 Adafruit_LTR303 ltr = Adafruit_LTR303();
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
@@ -43,6 +44,7 @@ static const int valid_apertures[VALID_APERTURES_SIZE] = {95,  140, 200,  280,  
 static const int valid_shutters[VALID_SHUTTERS_SIZE] = {2, 4, 10, 20, 40, 100, 200, 500, 1000};
 static const int valid_isos[VALID_ISOS_SIZE] = {50, 100, 200, 400, 800, 1600, 3200, 6400, 12800};
 
+
 struct CameraExposure exposure;
 struct CameraModeState mode;
 
@@ -50,6 +52,8 @@ std::map<CameraMode, String> mode_text;
 
 // ----------
 // Hann inte bli av med dessa ännu
+
+uint old_calculated_shutter;
 
 int sm;
 
@@ -154,7 +158,7 @@ double get_sensor()
         valid = ltr.readBothChannels(visible_plus_ir, infrared);
         if (valid)
         {
-            return visible_plus_ir-infrared;
+            return visible_plus_ir*8;
         }
     }
 }
@@ -221,15 +225,13 @@ float calculate_EV()
     return EV;
 }
 
-void calculate_shutter()
+int calculate_shutter()
 {
     double EV = calculate_EV();
     double apt = valid_apertures[exposure.aperture];
     double t = 100 * pow(apt/100, 2);
     double n = valid_isos[exposure.iso] * pow(2, EV);
-
-    double calculated_shutter = 1/t/n;
-    Serial.print(String(apt)+" "+String(t)+" "+ String(n) + " " + String(calculated_shutter)+ "\n");
+    return round(1/(t/n));
 }
 
 void display_text(int encoder)
@@ -269,6 +271,17 @@ void display_text(int encoder)
     }
 }
 
+
+void display_calculated_shutter(int calculated_shutter)
+{
+    if (calculated_shutter != old_calculated_shutter)
+    {   
+        display_erase("1/"+String(old_calculated_shutter), 70, 24);
+        display_print("1/"+String(calculated_shutter), 70, 24);
+        old_calculated_shutter = calculated_shutter;
+    }
+}
+
 void cycle_mode()
 {
     mode.prev = mode.current;
@@ -288,6 +301,7 @@ void setup()
 
 void loop()
 {
+    uint counter = 0;
     int encoder = read_encoder();
     bool encoder_button = digitalRead(ROTARY_BUTTON_GPIO) == 0;
 
@@ -310,7 +324,14 @@ void loop()
 
         display_text(encoder);
     }
-    calculate_shutter();
-    delay(300);
+    if (mode.current == 0)
+    {
+        if (counter%25 == 0)
+            {
+                display_calculated_shutter(calculate_shutter());
+            }
+    }
+    delay(50);
     //Serial.print(String(exposure.aperture) + " " + String(exposure.shutter) + " " + String(exposure.iso) + "---");
+    counter ++;
 }
