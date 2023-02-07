@@ -53,7 +53,8 @@ std::map<CameraMode, String> mode_text;
 // ----------
 // Hann inte bli av med dessa ännu
 
-uint old_calculated_shutter;
+uint old_calculated_shutter;  // need to get rid of this and do it like the other values, but can't be arsed right now
+uint old_calculated_apature;  // need to get rid of this and do it like the other values, but can't be arsed right now
 
 int sm;
 
@@ -234,6 +235,16 @@ int calculate_shutter()
     return round(1/(t/n));
 }
 
+double calculate_apature()
+{
+    //sqrt(shu*ISO*2^EV/100)
+    double EV = calculate_EV();
+    double shu = valid_shutters[exposure.shutter];
+    double apt = 1.0/shu*valid_isos[exposure.iso]*pow(2, EV)/100.0;
+    return apt;
+}
+
+
 void display_text(int encoder)
 {
     int enc = encoder_val;
@@ -271,7 +282,6 @@ void display_text(int encoder)
     }
 }
 
-
 void display_calculated_shutter(int calculated_shutter)
 {
     if (calculated_shutter != old_calculated_shutter)
@@ -281,6 +291,16 @@ void display_calculated_shutter(int calculated_shutter)
         old_calculated_shutter = calculated_shutter;
     }
 }
+void display_calculated_apature(double calculated_apature)
+{
+    if (calculated_apature != old_calculated_apature)
+    {   
+        display_erase(String(old_calculated_apature), 70, 8);
+        display_print(String(calculated_apature), 70, 8);
+        old_calculated_apature = calculated_apature;
+    }
+}
+
 
 void cycle_mode()
 {
@@ -301,7 +321,6 @@ void setup()
 
 void loop()
 {
-    uint counter = 0;
     int encoder = read_encoder();
     bool encoder_button = digitalRead(ROTARY_BUTTON_GPIO) == 0;
 
@@ -324,14 +343,14 @@ void loop()
 
         display_text(encoder);
     }
-    if (mode.current == 0)
+    if (mode.current == 0 || mode.current == 2)
     {
-        if (counter%25 == 0)
-            {
-                display_calculated_shutter(calculate_shutter());
-            }
+            display_calculated_shutter(calculate_shutter());
+    }
+    if (mode.current == 1 || mode.current == 2)
+    {
+            display_calculated_apature(calculate_apature());
     }
     delay(50);
     //Serial.print(String(exposure.aperture) + " " + String(exposure.shutter) + " " + String(exposure.iso) + "---");
-    counter ++;
 }
