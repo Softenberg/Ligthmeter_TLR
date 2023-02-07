@@ -242,7 +242,7 @@ double calculate_apature()
     double shu = valid_shutters[exposure.shutter];
     double apt = 1.0/shu*valid_isos[exposure.iso]*pow(2, EV)/100.0;
     Serial.print(apt);
-    apt = round(apt*100)/100.0;
+    apt = round(apt*10)/10.0;
     Serial.print(apt);
     return apt;
 }
@@ -259,14 +259,14 @@ void display_text(int encoder)
     }
     if (exposure.aperture != exposure.prev.aperture)
     {
-        display_erase(String(valid_apertures[exposure.prev.aperture]), OLED_COL_WIDTH, 8);
-        display_print(String(valid_apertures[exposure.aperture]), OLED_COL_WIDTH, 8);
+        display_erase(String(valid_apertures[exposure.prev.aperture]/100.0), OLED_COL_WIDTH, 8);
+        display_print(String(valid_apertures[exposure.aperture]/100.0), OLED_COL_WIDTH, 8);
         exposure.prev.aperture = exposure.aperture;
     }
     if (exposure.shutter != exposure.prev.shutter)
     {
-        display_erase(String(valid_shutters[exposure.prev.shutter]), OLED_COL_WIDTH, 16);
-        display_print(String(valid_shutters[exposure.shutter]), OLED_COL_WIDTH, 16);
+        display_erase("1/"+String(valid_shutters[exposure.prev.shutter]), OLED_COL_WIDTH, 16);
+        display_print("1/"+String(valid_shutters[exposure.shutter]), OLED_COL_WIDTH, 16);
         exposure.prev.shutter = exposure.shutter;
     }
     if (mode.current != mode.prev)
