@@ -241,6 +241,9 @@ double calculate_apature()
     double EV = calculate_EV();
     double shu = valid_shutters[exposure.shutter];
     double apt = 1.0/shu*valid_isos[exposure.iso]*pow(2, EV)/100.0;
+    Serial.print(apt);
+    apt = round(apt*100)/100.0;
+    Serial.print(apt);
     return apt;
 }
 
