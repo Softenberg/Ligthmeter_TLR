@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <map>
+#include <math.h>
 
 #include "camera.h"
 #include "hardware/pio.h"
@@ -144,7 +145,7 @@ void setup_display()
     display.display();
 }
 
-uint get_sensor()
+double get_sensor()
 {
     bool valid;
     uint16_t visible_plus_ir, infrared;
@@ -153,10 +154,9 @@ uint get_sensor()
         valid = ltr.readBothChannels(visible_plus_ir, infrared);
         if (valid)
         {
-            return visible_plus_ir;
+            return visible_plus_ir-infrared;
         }
     }
-    return 0;
 }
 
 int read_encoder()
@@ -210,7 +210,26 @@ void update_exposure(int step)
         }
         break;
     }
-    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 0));
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 0));  //reset the encoder to 0
+}
+
+float calculate_EV()
+{
+    double lux = get_sensor();
+    double EV = log2(2*lux/5)/log2(2);
+    Serial.print(String(lux) + " " + String(EV) + " ");
+    return EV;
+}
+
+void calculate_shutter()
+{
+    double EV = calculate_EV();
+    double apt = valid_apertures[exposure.aperture];
+    double t = 100 * pow(apt/100, 2);
+    double n = valid_isos[exposure.iso] * pow(2, EV);
+
+    double calculated_shutter = 1/t/n;
+    Serial.print(String(apt)+" "+String(t)+" "+ String(n) + " " + String(calculated_shutter)+ "\n");
 }
 
 void display_text(int encoder)
@@ -218,18 +237,21 @@ void display_text(int encoder)
     int enc = encoder_val;
     if (exposure.iso != exposure.prev.iso)
     {
-        display_erase(String(exposure.prev.iso), OLED_COL_WIDTH, 0);
-        display_print(String(exposure.iso), OLED_COL_WIDTH, 0);
+        display_erase(String(valid_isos[exposure.prev.iso]), OLED_COL_WIDTH, 0);
+        display_print(String(valid_isos[exposure.iso]), OLED_COL_WIDTH, 0);
+        exposure.prev.iso = exposure.iso;
     }
     if (exposure.aperture != exposure.prev.aperture)
     {
-        display_erase(String(exposure.prev.aperture), OLED_COL_WIDTH, 8);
-        display_print(String(exposure.aperture), OLED_COL_WIDTH, 8);
+        display_erase(String(valid_apertures[exposure.prev.aperture]), OLED_COL_WIDTH, 8);
+        display_print(String(valid_apertures[exposure.aperture]), OLED_COL_WIDTH, 8);
+        exposure.prev.aperture = exposure.aperture;
     }
     if (exposure.shutter != exposure.prev.shutter)
     {
-        display_erase(String(exposure.prev.shutter), OLED_COL_WIDTH, 16);
-        display_print(String(exposure.shutter), OLED_COL_WIDTH, 16);
+        display_erase(String(valid_shutters[exposure.prev.shutter]), OLED_COL_WIDTH, 16);
+        display_print(String(valid_shutters[exposure.shutter]), OLED_COL_WIDTH, 16);
+        exposure.prev.shutter = exposure.shutter;
     }
     if (mode.current != mode.prev)
     {
@@ -251,24 +273,7 @@ void cycle_mode()
 {
     mode.prev = mode.current;
     mode.current = static_cast<CameraMode>((mode.prev + 1) % 3);
-
-    uint encode_value = 0;
-
-    switch (mode.prev)
-    {
-    case CameraMode::Aperture:
-        encode_value = 50;
-        break;
-    case CameraMode::Shutter:
-        encode_value = 400;
-        break;
-    case CameraMode::ISO:
-        encode_value = 1;
-        break;
-    }
-
-    pio_sm_exec(pio, sm, pio_encode_set(pio_x, encode_value));
-    delay(100);
+    delay(250);
 }
 
 // ----------------------------------------------------------------------
@@ -305,7 +310,7 @@ void loop()
 
         display_text(encoder);
     }
-
-    delay(30);
-    Serial.print(String(exposure.aperture) + " " + String(exposure.shutter) + " " + String(exposure.iso) + "---");
+    calculate_shutter();
+    delay(300);
+    //Serial.print(String(exposure.aperture) + " " + String(exposure.shutter) + " " + String(exposure.iso) + "---");
 }
