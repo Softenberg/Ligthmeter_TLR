@@ -6,11 +6,14 @@
 #include <Wire.h>
 #include <map>
 #include <math.h>
+#include <hardware/flash.h>
 
 #include "camera.h"
 #include "hardware/pio.h"
 #include "pgmspace.h"
 #include "quadrature.pio.h"
+
+
 
 #define QUADRATURE_A_PIN 20
 #define QUADRATURE_B_PIN 21
@@ -22,8 +25,6 @@
 
 #define OLED_COL_WIDTH 35 
 uint cycle = 1;
-
-bool DEBUG = false;
 
 Adafruit_LTR303 ltr = Adafruit_LTR303();
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
@@ -66,9 +67,13 @@ int encoder_val;
 void setup_state()
 {
     // Initially: Aperture = 350, Shutter = 20, ISO = 400
-    exposure = {4, 3, 3};
-    exposure.prev = {4, 3, 3};
-
+    exposure.aperture = 4;
+    exposure.iso = 3;
+    exposure.shutter = 5;
+    exposure.prev.aperture = 4;
+    exposure.prev.iso = 3;
+    exposure.prev.shutter = 5;
+    
     mode.current = CameraMode::ISO;
     mode.prev = CameraMode::Shutter;
 
@@ -107,10 +112,24 @@ void setup_encoder()
     pinMode(ROTARY_BUTTON_GPIO, INPUT_PULLUP);
 }
 
+void display_print(String text, int col, int line, int size)
+{
+    display.setTextSize(size);
+    display.setTextColor(WHITE);
+    display.setCursor(col, line);
+    display.println(text);
+    display.display();
+}
+
 void display_print(String text, int col, int line)
 {
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
+    display_print(text, col, line, 1);
+}
+
+void display_erase(String text, int col, int line, int size)
+{
+    display.setTextSize(size);
+    display.setTextColor(BLACK);
     display.setCursor(col, line);
     display.println(text);
     display.display();
@@ -118,16 +137,12 @@ void display_print(String text, int col, int line)
 
 void display_erase(String text, int col, int line)
 {
-    display.setTextSize(1);
-    display.setTextColor(BLACK);
-    display.setCursor(col, line);
-    display.println(text);
-    display.display();
+    display_erase(text, col, line, 1);
 }
 
 void display_erase_area(int col, int line)
 {
-    display.fillRect(col, line, 128, 8, BLACK);
+    display.fillRect(col, line, 128, 16, BLACK);
     //display.display();
 }
 
@@ -233,7 +248,7 @@ float calculate_EV()
     return EV;
 }
 
-int calculate_shutter()
+uint calculate_shutter()
 {
     double EV = calculate_EV();
     double apt = valid_apertures[exposure.aperture];
@@ -257,46 +272,52 @@ double calculate_apature()
 void display_text(int encoder)
 {
     int enc = encoder_val;
+    String ap = String(valid_apertures[exposure.aperture]/100.0);
+    String sh = "1/"+String(valid_shutters[exposure.shutter]);
+    String is = String(valid_isos[exposure.iso]);
+    int start_pixel;
+    
+    if (mode.current == 2)
+    {
     if (exposure.iso != exposure.prev.iso)
-    {
-        display_erase(String(valid_isos[exposure.prev.iso]), OLED_COL_WIDTH, 0);
-        display_print(String(valid_isos[exposure.iso]), OLED_COL_WIDTH, 0);
-        exposure.prev.iso = exposure.iso;
-    }
-    if (exposure.aperture != exposure.prev.aperture)
-    {
-        display_erase(String(valid_apertures[exposure.prev.aperture]/100.0), OLED_COL_WIDTH, 8);
-        display_print(String(valid_apertures[exposure.aperture]/100.0), OLED_COL_WIDTH, 8);
-        exposure.prev.aperture = exposure.aperture;
-    }
-    if (exposure.shutter != exposure.prev.shutter)
-    {
-        display_erase("1/"+String(valid_shutters[exposure.prev.shutter]), OLED_COL_WIDTH, 16);
-        display_print("1/"+String(valid_shutters[exposure.shutter]), OLED_COL_WIDTH, 16);
-        exposure.prev.shutter = exposure.shutter;
-    }
-    if (mode.current != mode.prev)
-    {
-        display_erase(mode_text[mode.prev], OLED_COL_WIDTH, 24);
-        display_print(mode_text[mode.current], OLED_COL_WIDTH, 24);
-    }
-    if (DEBUG)
-    {
-        if (enc != old_enc)
         {
-            display_erase(String(old_enc), 90, 24);
-            display_print(String(enc), 90, 24);
-            old_enc = enc;
+            start_pixel = 128/2-round(is.length()*6*3/2);
+            display_erase(String(valid_isos[exposure.prev.iso]), start_pixel, 8, 3);
+            display_print(is, start_pixel, 8, 3);
+            exposure.prev.iso = exposure.iso;
+        }    
+    }
+
+    if (mode.current == 1)
+    {
+    if (exposure.shutter != exposure.prev.shutter)
+        {
+            display_erase(String(valid_shutters[exposure.prev.shutter]), 0, 0);
+            display_print(sh, 0, 0);
+            exposure.prev.shutter = exposure.shutter;
+        }
+        
+    }
+
+    if (mode.current == 0) 
+    {
+        if (exposure.aperture != exposure.prev.aperture)
+        {
+            display_erase(String(valid_apertures[exposure.prev.aperture]/100.0), 0, 0);
+            display_print(String(valid_apertures[exposure.aperture]/100.0), 0, 0);
+            exposure.prev.aperture = exposure.aperture;
         }
     }
 }
 
-void display_calculated_shutter(int calculated_shutter)
+void display_calculated_shutter(uint calculated_shutter)
 {
     if (calculated_shutter != old_calculated_shutter)
     {   
-        display_erase_area(80, 24);
-        display_print("1/"+String(calculated_shutter), 80, 24);
+        String csh = "1/"+String(calculated_shutter);
+        int start_pixel = 128/2-round(csh.length()*6*3/2);
+        display_erase_area(0, 8);
+        display_print(csh, start_pixel, 8, 3);
         old_calculated_shutter = calculated_shutter;
     }
 }
@@ -311,12 +332,28 @@ void display_calculated_apature(double calculated_apature)
     }
 }
 
-
 void cycle_mode()
 {
     mode.prev = mode.current;
     mode.current = static_cast<CameraMode>((mode.prev + 1) % 3);
     delay(250);
+    display.clearDisplay();
+    
+    int start_pixel;
+    String ap = String(valid_apertures[exposure.aperture]/100.0);
+    String sh = "1/"+String(valid_shutters[exposure.shutter]);
+    String is = String(valid_isos[exposure.iso]);
+
+    //initializing new screens when changing modes, might want a method for this tho to make it a bit cleaner for now this will do.
+    if (mode.current == 2)
+    {
+        start_pixel = 128/2-round(is.length()*6*3/2);
+        display_erase(String(valid_isos[exposure.prev.iso]), start_pixel, 8, 3);
+        display_print(is, start_pixel, 8, 3);
+        display_print(mode_text[mode.current], 54, 24);
+        exposure.prev.iso = exposure.iso;
+        Serial.print(start_pixel);
+    }    
 }
 
 // ----------------------------------------------------------------------
@@ -355,11 +392,11 @@ void loop()
     }
 
     if(cycle % 25 == 0){
-        if (mode.current == 0 || mode.current == 2)
+        if (mode.current == 0)
         {
                 display_calculated_shutter(calculate_shutter());
         }
-        if (mode.current == 1 || mode.current == 2)
+        if (mode.current == 1)
         {
                 display_calculated_apature(calculate_apature());
         }
