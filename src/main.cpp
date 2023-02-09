@@ -244,8 +244,7 @@ double calculate_apature()
     double EV = calculate_EV();
     double shu = valid_shutters[exposure.shutter];
     double apt = 1.0/shu*valid_isos[exposure.iso]*pow(2, EV)/100.0;
-    apt = round(apt*10)/100.0;
-    return apt;
+    return interval_rounding(int(round(apt*100)), 95, 800, 10, 100)/100.00;
 }
 
 void display_text(int encoder)
