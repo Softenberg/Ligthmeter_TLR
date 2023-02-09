@@ -237,7 +237,7 @@ double calculate_apature()
 
 void display_text(int encoder)
 {
-    String ap = String(valid_apertures[exposure.aperture]/100.0);
+    String ap = "f"+String(valid_apertures[exposure.aperture]/100.0);
     String sh = "1/"+String(valid_shutters[exposure.shutter]);
     String is = String(valid_isos[exposure.iso]);
     int start_pixel;
@@ -291,7 +291,7 @@ void display_calculated_apature(double calculated_apature)
 {
     if (calculated_apature != old_calculated_apature)
     {   
-        String cap = "f/"+String(calculated_apature);
+        String cap = "f"+String(calculated_apature);
         int start_pixel = 128/2-round(cap.length()*6*3/2);
         display.fillRect(0, 8, 128, 24, BLACK);
         display_print(cap, start_pixel, 8, 3);
@@ -307,7 +307,7 @@ void cycle_mode()
     display.clearDisplay();
     
     int start_pixel;
-    String ap = String(calculate_apature()/100.0);
+    String ap = "f"+String(calculate_apature()/100.0);
     String sh = "1/"+String(calculate_shutter());
     String is = String(valid_isos[exposure.iso]);
     
@@ -325,7 +325,7 @@ void cycle_mode()
         display_print(sh, start_pixel, 8, 3);
         display_print("SHU", 54, 0);
         display_print(is, iso_pixel, 0);
-        display_print(String(valid_apertures[exposure.aperture]), 0, 0);
+        display_print("f"+String(valid_apertures[exposure.aperture]/100.0), 0, 0);
     }   
     if (mode.current == CameraMode::Shutter)
     {
@@ -334,7 +334,7 @@ void cycle_mode()
         display_print(ap, start_pixel, 8, 3);
         display_print("APT", 54, 0);
         display_print(is, iso_pixel, 0);
-        display_print(String(valid_shutters[exposure.shutter]), 0, 0);
+        display_print("1/"+String(valid_shutters[exposure.shutter]), 0, 0);
 
     }   
 }
