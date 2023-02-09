@@ -40,7 +40,7 @@ PIO pio = pio0;
 
 static const int valid_apertures[VALID_APERTURES_SIZE] = {95,  140, 200,  280,  350,  400,
                                                           560, 800, 1100, 1600, 2200, 3200};
-static const int valid_shutters[VALID_SHUTTERS_SIZE] = {1, 2, 4, 10, 20, 40, 100, 200, 500, 1000};
+static const int valid_shutters[VALID_SHUTTERS_SIZE] = {1, 2, 4, 10, 20, 50, 100, 200, 500, 1000};
 static const int valid_isos[VALID_ISOS_SIZE] = {50, 100, 200, 400, 800, 1600, 3200, 6400, 12800};
 
 
@@ -150,6 +150,7 @@ double get_sensor()
             return visible_plus_ir*8;
         }
     }
+    return 0.0001;
 }
 
 int read_encoder()
@@ -210,28 +211,40 @@ float calculate_EV()
 {
     double lux = get_sensor();
     double EV = log2(2*lux/5)/log2(2);
-    Serial.print(String(lux) + " " + String(EV) + " ");
     return EV;
+}
+
+uint interval_rounding(int value, int limit1, int limit2, int multiple1, int multiple2)
+{
+    value = round(value);
+    if (value > limit1 && value <= limit2){
+        return value + abs((value % multiple1) - multiple1);
+    }
+    else if (value > limit2){
+        return value + abs((value % multiple2) - multiple2);
+    }
+    else{
+        return value;
+    }
 }
 
 uint calculate_shutter()
 {
     double EV = calculate_EV();
     double apt = valid_apertures[exposure.aperture];
-    double t = 100 * pow(apt/100, 2);
-    double n = valid_isos[exposure.iso] * pow(2, EV);
-    return round(1/(t/n));
+    double t = 100.0 * pow(apt/100.0, 2.0);
+    double n = valid_isos[exposure.iso] * pow(2.0, EV);
+    double res = 1.0/(t/n);
+    Serial.println(res);
+    return interval_rounding(res, 5, 50, 5, 25);
 }
 
 double calculate_apature()
 {
-    //sqrt(shu*ISO*2^EV/100)
     double EV = calculate_EV();
     double shu = valid_shutters[exposure.shutter];
     double apt = 1.0/shu*valid_isos[exposure.iso]*pow(2, EV)/100.0;
-    Serial.print(apt);
     apt = round(apt*10)/100.0;
-    Serial.print(apt);
     return apt;
 }
 
@@ -247,7 +260,7 @@ void display_text(int encoder)
     if (exposure.iso != exposure.prev.iso)
         {
             start_pixel = 128/2-round(is.length()*6*3/2);
-            display_erase(String(valid_isos[exposure.prev.iso]), start_pixel, 8, 3);
+            display.fillRect(0, 8, 128, 24, BLACK);
             display_print(is, start_pixel, 8, 3);
             exposure.prev.iso = exposure.iso;
         }    
@@ -257,7 +270,7 @@ void display_text(int encoder)
     {
     if (exposure.shutter != exposure.prev.shutter)
         {
-            display_erase(String(valid_shutters[exposure.prev.shutter]), 0, 0);
+            display_erase("1/"+String(valid_shutters[exposure.prev.shutter]), 0, 0);
             display_print(sh, 0, 0);
             exposure.prev.shutter = exposure.shutter;
         }
@@ -268,8 +281,8 @@ void display_text(int encoder)
     {
         if (exposure.aperture != exposure.prev.aperture)
         {
-            display_erase(String(valid_apertures[exposure.prev.aperture]/100.0), 0, 0);
-            display_print(String(valid_apertures[exposure.aperture]/100.0), 0, 0);
+            display_erase("f"+String(valid_apertures[exposure.prev.aperture]/100.0), 0, 0);
+            display_print("f"+String(valid_apertures[exposure.aperture]/100.0), 0, 0);
             exposure.prev.aperture = exposure.aperture;
         }
     }
@@ -389,7 +402,7 @@ void loop()
         display_text(encoder);
     }
 
-    if(cycle % 15 == 0){
+    if(cycle % 30 == 0){
         if (mode.current == CameraMode::Aperture)
         {
                 display_calculated_shutter(calculate_shutter());
@@ -400,6 +413,6 @@ void loop()
         }
     }
     cycle ++;
-    delay(30);
+    delay(50);
     //Serial.print(String(exposure.aperture) + " " + String(exposure.shutter) + " " + String(exposure.iso) + "---");
 }
