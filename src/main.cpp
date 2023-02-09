@@ -140,12 +140,6 @@ void display_erase(String text, int col, int line)
     display_erase(text, col, line, 1);
 }
 
-void display_erase_area(int col, int line)
-{
-    display.fillRect(col, line, 128, 16, BLACK);
-    //display.display();
-}
-
 void setup_display()
 {
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
@@ -316,7 +310,7 @@ void display_calculated_shutter(uint calculated_shutter)
     {   
         String csh = "1/"+String(calculated_shutter);
         int start_pixel = 128/2-round(csh.length()*6*3/2);
-        display_erase_area(0, 8);
+        display.fillRect(0, 8, 128, 24, BLACK);
         display_print(csh, start_pixel, 8, 3);
         old_calculated_shutter = calculated_shutter;
     }
@@ -326,8 +320,10 @@ void display_calculated_apature(double calculated_apature)
 {
     if (calculated_apature != old_calculated_apature)
     {   
-        display_erase_area(75, 8);
-        display_print("f/"+String(calculated_apature), 75, 8);
+        String cap = "f/"+String(calculated_apature);
+        int start_pixel = 128/2-round(cap.length()*6*3/2);
+        display.fillRect(0, 8, 128, 24, BLACK);
+        display_print(cap, start_pixel, 8, 3);
         old_calculated_apature = calculated_apature;
     }
 }
@@ -343,17 +339,34 @@ void cycle_mode()
     String ap = String(valid_apertures[exposure.aperture]/100.0);
     String sh = "1/"+String(valid_shutters[exposure.shutter]);
     String is = String(valid_isos[exposure.iso]);
-
+    
     //initializing new screens when changing modes, might want a method for this tho to make it a bit cleaner for now this will do.
     if (mode.current == 2)
     {
         start_pixel = 128/2-round(is.length()*6*3/2);
-        display_erase(String(valid_isos[exposure.prev.iso]), start_pixel, 8, 3);
         display_print(is, start_pixel, 8, 3);
-        display_print(mode_text[mode.current], 54, 24);
-        exposure.prev.iso = exposure.iso;
-        Serial.print(start_pixel);
-    }    
+        display_print(mode_text[mode.current], 54, 0);
+    }
+    if (mode.current == 0)
+    {
+        int iso_pixel = 128-round(is.length()*6);
+        start_pixel = 128/2-round(sh.length()*6*3/2);
+        display_print(sh, start_pixel, 8, 3);
+        display_print("SHU", 54, 0);
+        display_print(is, iso_pixel, 0);
+        display_print(ap, 0, 0);
+
+    }   
+    if (mode.current == 1)
+    {
+        int iso_pixel = 128-round(is.length()*6);
+        start_pixel = 128/2-round(ap.length()*6*3/2);
+        display_print(ap, start_pixel, 8, 3);
+        display_print("APT", 54, 0);
+        display_print(is, iso_pixel, 0);
+        display_print(sh, 0, 0);
+
+    }   
 }
 
 // ----------------------------------------------------------------------
@@ -391,7 +404,7 @@ void loop()
         display_text(encoder);
     }
 
-    if(cycle % 25 == 0){
+    if(cycle % 15 == 0){
         if (mode.current == 0)
         {
                 display_calculated_shutter(calculate_shutter());
