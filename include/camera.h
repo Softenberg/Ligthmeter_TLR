@@ -8,8 +8,8 @@ struct CameraExposureBare
 struct CameraExposure
 {
     CameraExposureBare prev;
-    int aperture;
     int shutter;
+    int aperture;
     int iso;
 };
 

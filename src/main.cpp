@@ -13,8 +13,6 @@
 #include "pgmspace.h"
 #include "quadrature.pio.h"
 
-
-
 #define QUADRATURE_A_PIN 20
 #define QUADRATURE_B_PIN 21
 #define ROTARY_BUTTON_GPIO 17
@@ -140,32 +138,6 @@ void display_erase(String text, int col, int line)
     display_erase(text, col, line, 1);
 }
 
-void setup_display()
-{
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-    {
-        Serial.println(F("SSD1306 allocation failed"));
-        while (true)
-        {
-            delay(100);
-        }
-    }
-
-    display.clearDisplay();
-
-    display_print(mode_text[CameraMode::Aperture] + ":", 0, 8);
-    display_print(mode_text[CameraMode::Shutter] + ":", 0, 16);
-    display_print(mode_text[CameraMode::ISO] + ":", 0, 0);
-    display_print("MODE:", 0, 24);
-    display_print("APT", 85, 0);
-    display_print("SHU", 85, 16);
-    display_print(String(valid_apertures[exposure.aperture]/100.0), OLED_COL_WIDTH, 8);
-    display_print("1/"+String(valid_shutters[exposure.shutter]), OLED_COL_WIDTH, 16);
-    display_print(String(valid_isos[exposure.iso]), OLED_COL_WIDTH, 0);
-    display_print(mode_text[mode.current], OLED_COL_WIDTH, 24);
-    display.display();
-}
-
 double get_sensor()
 {
     bool valid;
@@ -265,13 +237,12 @@ double calculate_apature()
 
 void display_text(int encoder)
 {
-    int enc = encoder_val;
     String ap = String(valid_apertures[exposure.aperture]/100.0);
     String sh = "1/"+String(valid_shutters[exposure.shutter]);
     String is = String(valid_isos[exposure.iso]);
     int start_pixel;
     
-    if (mode.current == 2)
+    if (mode.current == CameraMode::ISO)
     {
     if (exposure.iso != exposure.prev.iso)
         {
@@ -282,7 +253,7 @@ void display_text(int encoder)
         }    
     }
 
-    if (mode.current == 1)
+    if (mode.current == CameraMode::Shutter)
     {
     if (exposure.shutter != exposure.prev.shutter)
         {
@@ -293,7 +264,7 @@ void display_text(int encoder)
         
     }
 
-    if (mode.current == 0) 
+    if (mode.current == CameraMode::Aperture) 
     {
         if (exposure.aperture != exposure.prev.aperture)
         {
@@ -336,37 +307,51 @@ void cycle_mode()
     display.clearDisplay();
     
     int start_pixel;
-    String ap = String(valid_apertures[exposure.aperture]/100.0);
-    String sh = "1/"+String(valid_shutters[exposure.shutter]);
+    String ap = String(calculate_apature()/100.0);
+    String sh = "1/"+String(calculate_shutter());
     String is = String(valid_isos[exposure.iso]);
     
     //initializing new screens when changing modes, might want a method for this tho to make it a bit cleaner for now this will do.
-    if (mode.current == 2)
+    if (mode.current == CameraMode::ISO)
     {
         start_pixel = 128/2-round(is.length()*6*3/2);
         display_print(is, start_pixel, 8, 3);
         display_print(mode_text[mode.current], 54, 0);
     }
-    if (mode.current == 0)
+    if (mode.current == CameraMode::Aperture)
     {
         int iso_pixel = 128-round(is.length()*6);
         start_pixel = 128/2-round(sh.length()*6*3/2);
         display_print(sh, start_pixel, 8, 3);
         display_print("SHU", 54, 0);
         display_print(is, iso_pixel, 0);
-        display_print(ap, 0, 0);
-
+        display_print(String(valid_apertures[exposure.aperture]), 0, 0);
     }   
-    if (mode.current == 1)
+    if (mode.current == CameraMode::Shutter)
     {
         int iso_pixel = 128-round(is.length()*6);
         start_pixel = 128/2-round(ap.length()*6*3/2);
         display_print(ap, start_pixel, 8, 3);
         display_print("APT", 54, 0);
         display_print(is, iso_pixel, 0);
-        display_print(sh, 0, 0);
+        display_print(String(valid_shutters[exposure.shutter]), 0, 0);
 
     }   
+}
+
+void setup_display()
+{
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+    {
+        Serial.println(F("SSD1306 allocation failed"));
+        while (true)
+        {
+            delay(100);
+        }
+    }
+
+    display.clearDisplay();
+    cycle_mode();
 }
 
 // ----------------------------------------------------------------------
@@ -405,11 +390,11 @@ void loop()
     }
 
     if(cycle % 15 == 0){
-        if (mode.current == 0)
+        if (mode.current == CameraMode::Aperture)
         {
                 display_calculated_shutter(calculate_shutter());
         }
-        if (mode.current == 1)
+        if (mode.current == CameraMode::Shutter)
         {
                 display_calculated_apature(calculate_apature());
         }
